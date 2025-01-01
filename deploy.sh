@@ -8,6 +8,7 @@ ENCRYPTED_CONFIG_FILE="session_protector/garbage/scooby_snacks.conf.enc"
 PASSWORD="your_password" # Replace with your encryption password
 REQUIREMENTS_FILE="requirements.txt"
 LOG_FILE="deployment.log"
+MONITOR_SCRIPT="gui/popup.py"
 
 encrypt_config() {
     if [ -f "$CONFIG_FILE" ]; then
@@ -27,7 +28,7 @@ encrypt_config() {
 deploy_to_machine() {
     local MACHINE=$1
 
-    echo "[*] Starting deployment to $MACHINE..." | tee -a "$LOG_FILE"
+    echo "[*] Starting covert deployment to $MACHINE..." | tee -a "$LOG_FILE"
     scp -r "$LOCAL_DIR" "$MACHINE:$TARGET_DIR" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "[!] File transfer to $MACHINE failed." | tee -a "$LOG_FILE"
@@ -46,17 +47,17 @@ deploy_to_machine() {
             pip3 install -r "$REQUIREMENTS_FILE" > /dev/null 2>&1
         fi
 
-        chmod +x actions/*.sh monitor/*.sh gui/popup.py
+        chmod +x actions/*.sh monitor/*.sh "$MONITOR_SCRIPT"
 
-        echo "[*] Running the main.sh script on $MACHINE..." | tee -a "$LOG_FILE"
-        nohup ./monitor/main.sh > /dev/null 2>&1 &
+        echo "[*] Starting covert monitoring script ($MONITOR_SCRIPT) on $MACHINE..." | tee -a "$LOG_FILE"
+        nohup python3 "$MONITOR_SCRIPT" > /dev/null 2>&1 &
 EOF
 
     if [ $? -eq 0 ]; then
-        echo "[*] Deployment to $MACHINE successful." | tee -a "$LOG_FILE"
+        echo "[*] Covert deployment to $MACHINE successful." | tee -a "$LOG_FILE"
         return 0
     else
-        echo "[!] Deployment to $MACHINE failed." | tee -a "$LOG_FILE"
+        echo "[!] Covert deployment to $MACHINE failed." | tee -a "$LOG_FILE"
         return 1
     fi
 }
@@ -64,7 +65,7 @@ EOF
 health_check() {
     local MACHINE=$1
     ssh $MACHINE bash << EOF
-        pgrep -f "./monitor/main.sh" > /dev/null 2>&1
+        pgrep -f "python3 $MONITOR_SCRIPT" > /dev/null 2>&1
 EOF
     if [ $? -eq 0 ]; then
         echo "[*] Health check passed on $MACHINE. Monitoring script is running." | tee -a "$LOG_FILE"
@@ -89,4 +90,4 @@ done
 
 cleanup_local
 
-echo "[*] Deployment process complete." | tee -a "$LOG_FILE"
+echo "[*] Covert deployment process complete." | tee -a "$LOG_FILE"
