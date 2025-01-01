@@ -37,20 +37,16 @@ def on_closing():
 root = tk.Tk()
 root.title("Notification")
 
-# Load the image
-image_path = "/path/to/your/image.png"  # Replace with the actual path to your image
+image_path = "/path/to/your/image.png"
 image = Image.open(image_path)
 photo = ImageTk.PhotoImage(image)
 
-# Display the image
 image_label = tk.Label(root, image=photo)
 image_label.pack(pady=10)
 
-# Display the message
 message = tk.Label(root, text="TRY HARDER!! Connection will terminate in 5 seconds.")
 message.pack(pady=20)
 
-# Countdown label
 countdown_label = tk.Label(root, text="", font=("Helvetica", 16))
 countdown_label.pack(pady=10)
 
