@@ -1,15 +1,18 @@
-
 # Session Protector Deployment Guide
 
 ## Prerequisites
 
-- **Access to the Target Machine:** Ensure you have SSH access to the target machine.
-- **Correct Credentials:** Update your scripts with the correct SSH credentials.
-- **Local Machine Setup:** Ensure that your local machine has `scp` and `ssh` installed.
+- **Access to Target Machines**: Ensure you have SSH access to the target machines.
+- **Correct Credentials**: Update your scripts with the correct SSH credentials for each target machine.
+- **Local Machine Setup**: Ensure that your local machine has the following tools installed:
+  - `scp`
+  - `ssh`
+  - `openssl`
+  - Python 3 with `pip3`
 
 ## Directory Structure
 
-Your local project should have the following structure:
+Ensure your project follows this structure:
 
 ```
 session_protector/
@@ -24,99 +27,192 @@ session_protector/
 ├── gui/
 │   └── popup.py
 ├── monitor/
-│   ├── main.sh
-│   └── monitor_connections.sh
-└── deploy.sh
+│   ├── LICENSE
+│   ├── README.md
+├── deploy.sh
+├── requirements.txt
 ```
 
-## Step 1: Prepare the `deploy.sh` Script
+## Step 1: Preparation
 
-### 1.1 Edit `deploy.sh`
+### 1.1 Encrypt Configuration File
 
-- **Open `deploy.sh`:** Make sure `deploy.sh` is located in the root of the `session_protector` directory.
-- **Update the SSH Credentials:**
-  Replace the placeholder with your actual SSH credentials for the target machine:
-  
-  ```bash
-  TARGET_MACHINE="username@target_ip_address" # <---- replace with target credentials.
-  ```
+Encrypt the `scooby_snacks.conf` file before deployment:
 
-### 1.2 Review Script Details
+```bash
+openssl enc -aes-256-cbc -salt -in garbage/scooby_snacks.conf -out garbage/scooby_snacks.conf.enc -k "your_password"
+```
 
-- **Encryption:** The `deploy.sh` script will encrypt `scooby_snacks.conf` before transferring files to the target machine.
-- **Target Directory:** Files will be transferred to `/var/tmp/.cache` on the target machine.
-- **Stealth Execution:** The script runs `main.sh` in the background without generating noticeable logs.
+This ensures sensitive information like `MY_HTB_IP` and `MY_SSH_USERNAME` remains secure.
 
-## Step 2: Execute the Deployment Script
+### 1.2 Edit `deploy.sh`
 
-### 2.1 Run the Deployment Script
+Update the `TARGET_MACHINES` array in `deploy.sh` with the target machine details:
 
-1. **Navigate to `session_protector`:**
+```bash
+TARGET_MACHINES=("username1@target_ip_1" "username2@target_ip_2")
+```
+
+Review the other variables in `deploy.sh`, such as:
+- `TARGET_DIR` (default: `/var/tmp/.cache`)
+- `PASSWORD` (used for encryption)
+
+### 1.3 Install Dependencies Locally
+
+Install the required Python dependencies from `requirements.txt`:
+
+```bash
+pip3 install -r requirements.txt
+```
+
+Ensure `deploy.sh` and all scripts in `actions` and `monitor` directories are executable:
+
+```bash
+chmod +x deploy.sh
+chmod +x actions/*.sh
+chmod +x gui/popup.py
+```
+
+---
+
+## Step 2: Deployment
+
+### 2.1 Deploy to Target Machines
+
+Run the deployment script to set up the system on all specified target machines:
+
+```bash
+./deploy.sh
+```
+
+This script will:
+- Encrypt `scooby_snacks.conf`.
+- Transfer the `session_protector` directory to `/var/tmp/.cache` on each target machine.
+- Install all dependencies silently on the target machines.
+- Start the monitoring script (`popup.py`) and `main.sh` in the background.
+
+---
+
+## Step 3: Monitoring and Management
+
+### 3.1 Check Running Processes
+
+To verify the scripts are running, SSH into a target machine and check for the processes:
+
+```bash
+ssh username@target_ip_1
+ps aux | grep -E "popup.py|main.sh"
+```
+
+### 3.2 Retrieve Logs
+
+Logs from the monitoring script (`popup.py`) are stored at `/var/log/connection_popup.log`. Retrieve them using `scp`:
+
+```bash
+scp username@target_ip_1:/var/log/connection_popup.log ./logs/target_ip_1.log
+```
+
+### 3.3 Adjust or Restart Scripts
+
+If you need to make adjustments:
+
+1. SSH into the target machine.
+2. Navigate to the deployed directory:
    ```bash
-   cd /path/to/session_protector
+   cd /var/tmp/.cache
+   ```
+3. Edit the required files, then restart the script:
+   ```bash
+   ./monitor/main.sh &
    ```
 
-2. **Make `deploy.sh` Executable:**
-   ```bash
-   chmod +x deploy.sh
-   ```
+---
 
-3. **Run the Script:**
-   Execute the script to encrypt your configuration, deploy everything to the target machine, and start the session protection:
-   ```bash
-   ./deploy.sh
-   ```
+## Step 4: Automated Monitoring
 
-### 2.2 What Happens Next
+### 4.1 Enable Persistent Monitoring
 
-- **File Encryption:** The `scooby_snacks.conf` file is encrypted into `scooby_snacks.conf.enc` using AES-256-CBC encryption.
-- **File Transfer:** The entire `session_protector` directory, including the encrypted configuration file, is transferred to `/var/tmp/.cache` on the target machine.
-- **Dependency Installation:** Necessary packages and libraries are installed quietly on the target machine.
-- **Script Execution:** `main.sh` is executed in the background, starting your session protection.
+Set up `popup.py` as a systemd service to restart automatically on failure:
 
-## Step 3: Monitoring and Adjustments
+```bash
+sudo nano /etc/systemd/system/popup.service
+```
 
-### 3.1 Monitor the Target Machine
+Add the following:
 
-After deployment, you may want to check if everything is running smoothly:
+```ini
+[Unit]
+Description=Covert Monitoring Script
+After=network.target
 
-1. **SSH into the Target Machine:**
-   ```bash
-   ssh username@target_ip_address # <---- Replace with actual credentials. Refer to deploy.sh
-   ```
+[Service]
+ExecStart=/usr/bin/python3 /var/tmp/.cache/gui/popup.py
+Restart=always
 
-2. **Check Processes:**
-   Ensure `main.sh` is running in the background:
-   ```bash
-   ps aux | grep main.sh
-   ```
+[Install]
+WantedBy=multi-user.target
+```
 
-### 3.2 Stopping or Adjusting the Scripts
+Enable and start the service:
 
-If needed, you can stop the scripts or make adjustments:
+```bash
+sudo systemctl enable popup.service
+sudo systemctl start popup.service
+```
 
-- **To Stop the Script:**
-  Kill the process associated with `main.sh`:
-  ```bash
-  pkill -f main.sh
-  ```
+### 4.2 Automate Log Retrieval
 
-- **To Make Adjustments:**
-  Edit the necessary files in `/var/tmp/.cache` and restart `main.sh`:
-  ```bash
-  ./monitor/main.sh &
-  ```
+Schedule a cron job to pull logs periodically to your local machine:
 
-## Step 4: Cleanup
+```bash
+crontab -e
+```
 
-If you need to cover your tracks:
+Add:
 
-1. **Remove All Files:**
-   ```bash
-   rm -rf /var/tmp/.cache
-   ```
+```bash
+0 * * * * scp username@target_ip_1:/var/log/connection_popup.log /path/to/local/logs/
+```
 
-2. **Clear Bash History:**
-   ```bash
-   history -c
-   ```
+---
+
+## Step 5: Cleanup and Stealth
+
+### 5.1 Remove Files from Target Machines
+
+To clean up all traces of the deployment on the target machine:
+
+```bash
+ssh username@target_ip_1
+rm -rf /var/tmp/.cache
+```
+
+### 5.2 Clear Bash History
+
+Clear the bash history on the target machine to remove traces of your commands:
+
+```bash
+history -c
+```
+
+---
+
+## Step 6: Logging and Review
+
+### 6.1 Local Log Review
+
+Consolidate all logs from the target machines into a local directory for review:
+
+```bash
+mkdir -p logs
+scp username@target_ip_1:/var/log/connection_popup.log logs/target_ip_1.log
+scp username@target_ip_2:/var/log/connection_popup.log logs/target_ip_2.log
+```
+
+### 6.2 Analyze Logs
+
+Analyze the retrieved logs to understand connection activities and actions taken.
+
+---
+
+
