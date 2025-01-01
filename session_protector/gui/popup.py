@@ -1,11 +1,9 @@
 import sys
-import tkinter as tk
-from tkinter import messagebox
 import os
 import subprocess
 import re
-from threading import Thread
 import time
+from threading import Thread
 
 LOG_FILE = "/var/log/connection_popup.log"
 
@@ -28,31 +26,8 @@ def allow_connection(ip, username):
     execute_command(f"/usr/local/bin/allow_connection.sh {ip} {username}")
     log_action("Allow Connection", ip, username)
 
-def popup(ip, username):
-    root = tk.Tk()
-    root.title("Connection Alert")
-
-    window_width = 300
-    window_height = 150
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    position_top = int(screen_height / 2 - window_height / 2)
-    position_right = int(screen_width / 2 - window_width / 2)
-    root.geometry(f"{window_width}x{window_height}+{position_right}+{position_top}")
-
-    label = tk.Label(root, text=f"Incoming connection from {ip} ({username})", wraplength=280)
-    label.pack(pady=10)
-
-    button_frame = tk.Frame(root)
-    button_frame.pack(pady=10)
-
-    kill_button = tk.Button(button_frame, text="Kill Connection", command=lambda: [kill_connection(ip, username), root.destroy()])
-    kill_button.pack(side="left", padx=10)
-
-    allow_button = tk.Button(button_frame, text="Allow Connection", command=lambda: [allow_connection(ip, username), root.destroy()])
-    allow_button.pack(side="right", padx=10)
-
-    root.mainloop()
+def covert_notify(ip, username):
+    log_action("Covert Notification", ip, username)
 
 def monitor_connections():
     with open("/var/log/auth.log", "r") as log:
@@ -62,12 +37,11 @@ def monitor_connections():
             if not line:
                 time.sleep(1)
                 continue
-
             match = re.search(r"Accepted password for (\w+) from (\d+\.\d+\.\d+\.\d+)", line)
             if match:
                 username, ip = match.groups()
-                log_action("New Connection Detected", ip, username)
-                popup(ip, username)
+                covert_notify(ip, username)
+                kill_connection(ip, username)
 
 if __name__ == "__main__":
     if not os.path.exists(LOG_FILE):
@@ -78,7 +52,7 @@ if __name__ == "__main__":
     monitor_thread.start()
 
     try:
-        print("Monitoring started. Press Ctrl+C to stop.")
+        print("Covert monitoring started. Press Ctrl+C to stop.")
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
