@@ -1,4 +1,4 @@
-# Session Protector Deployment Guide
+# Session Protector Deployment Guide ( KOTH ) == EPO
 
 ## Prerequisites
 
