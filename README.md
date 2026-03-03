@@ -1,218 +1,155 @@
-# Session Protector Deployment Guide ( KOTH ) == EPO
+# SessionProtector (KOTH / EPO)
 
-## Prerequisites
+A defensive prank tool for King of the Hill CTF matches. Monitors SSH connections on a target machine, detects intruders in real time, and gives you a web dashboard with granular toggleable actions to mess with them.
 
-- **Access to Target Machines**: Ensure you have SSH access to the target machines.
-- **Correct Credentials**: Update your scripts with the correct SSH credentials for each target machine.
-- **Local Machine Setup**: Ensure that your local machine has the following tools installed:
-  - `scp`
-  - `ssh`
-  - `openssl`
-  - Python 3 with `pip3`
+## Features
+
+- Real-time SSH connection monitoring via `/var/log/auth.log`
+- Auto-ignores your own connections
+- Live terminal viewer with full session recording
+- Command history logging (timestamps + commands)
+- 11 individual action buttons per attacker, most toggleable (start/stop)
+- Spy streams start automatically for every attacker on connect
+- All session data buffered -- switch between attackers without losing history
+- Structured log export for post-match review
+
+## Action Buttons
+
+| Button | Type | What It Does |
+|--------|------|-------------|
+| **Fake Files** | Toggle | Plants fake documents, downloads, desktop files, and credentials |
+| **Fake Cmds** | Toggle | Injects 18 fake command aliases into their `.bashrc` |
+| **Shell Chaos** | Toggle | Flashing prompt, random command delays, dumb terminal, red background |
+| **Keyboard** | Toggle | `bash bind` key remaps + `stty` chaos (swap backspace/enter, etc.) |
+| **Sounds** | Toggle | Cranks volume, random beeps, keypress beeps |
+| **Messages** | Toggle | Targeted terminal messages via `write`, periodic reminders, cron messages |
+| **Popups** | Toggle | Spawns tkinter popup windows with troll messages (graphical sessions only) |
+| **Passwords** | One-shot | Rotates root and attacker passwords to random strings |
+| **Spy** | Toggle | Session recording via `script` + command logging (auto-started) |
+| **Kill** | One-shot | Blocks IP with iptables, kills processes, deletes user account |
+| **Reset** | One-shot | Kills processes, deletes and recreates user with new random password |
+
+## Dashboard Layout
+
+- **Left sidebar**: Attacker list with active action badges and command counts
+- **Center**: Large live terminal viewer showing everything the attacker types and sees
+- **Right panel**: Action button grid (2-column) + scrolling command history
+- **Bottom bar**: Collapsible event log
 
 ## Directory Structure
 
-Ensure your project follows this structure:
-
 ```
-session_protector/
-│
-├── actions/
-│   ├── allow_connection.sh
-│   ├── kill_connection.sh
-│   └── reset_creds.sh
-├── garbage/
-│   ├── scooby_snacks.conf
-│   └── scooby_snacks.conf.enc
-├── gui/
-│   └── popup.py
-├── monitor/
-│   ├── LICENSE
-│   ├── README.md
-├── deploy.sh
-├── requirements.txt
+SessionProtector/
+  requirements.txt
+  .gitignore
+  session_protector/
+    app.py                         # Flask web dashboard + API + SSE
+    monitor.py                     # auth.log watcher + disconnect detection
+    config.env                     # Your IP + username (gitignored)
+    actions/
+      action_fake_files.sh
+      action_fake_cmds.sh
+      action_shell_chaos.sh
+      action_keyboard.sh
+      action_sounds.sh
+      action_messages.sh
+      action_popups.sh
+      action_passwords.sh
+      action_spy.sh
+      action_kill.sh
+      action_reset.sh
+    templates/
+      dashboard.html
+    static/
+      style.css
+      app.js
 ```
 
-## Step 1: Preparation
+## Setup
 
-### 1.1 Encrypt Configuration File
+### 1. Configure
 
-Encrypt the `scooby_snacks.conf` file before deployment:
+Set environment variables or create `session_protector/config.env`:
 
 ```bash
-openssl enc -aes-256-cbc -salt -in garbage/scooby_snacks.conf -out garbage/scooby_snacks.conf.enc -k "your_password"
+MY_HTB_IP="10.10.14.XX"
+MY_SSH_USERNAME="your_username"
 ```
 
-This ensures sensitive information like `MY_HTB_IP` and `MY_SSH_USERNAME` remains secure.
-
-### 1.2 Edit `deploy.sh`
-
-Update the `TARGET_MACHINES` array in `deploy.sh` with the target machine details:
+Or export them directly:
 
 ```bash
-TARGET_MACHINES=("username1@target_ip_1" "username2@target_ip_2")
+export SP_MY_IP="10.10.14.XX"
+export SP_MY_USERNAME="your_username"
 ```
 
-Review the other variables in `deploy.sh`, such as:
-- `TARGET_DIR` (default: `/var/tmp/.cache`)
-- `PASSWORD` (used for encryption)
+### 2. Deploy to Target
 
-### 1.3 Install Dependencies Locally
-
-Install the required Python dependencies from `requirements.txt`:
+Copy the `session_protector/` directory and `requirements.txt` to the target machine:
 
 ```bash
-pip3 install -r requirements.txt
+scp -r session_protector/ requirements.txt user@target:/var/tmp/.sp/
 ```
 
-Ensure `deploy.sh` and all scripts in `actions` and `monitor` directories are executable:
+### 3. Start on Target
+
+SSH in and run as root:
 
 ```bash
-chmod +x deploy.sh
+ssh user@target
+sudo bash
+cd /var/tmp/.sp/session_protector
+export SP_MY_IP="10.10.14.XX" SP_MY_USERNAME="your_username"
 chmod +x actions/*.sh
-chmod +x gui/popup.py
+pip3 install flask
+python3 app.py
 ```
 
----
+The dashboard runs on port 5000. Access it via SSH tunnel or directly if the network allows.
 
-## Step 2: Deployment
+### 4. Access Dashboard
 
-### 2.1 Deploy to Target Machines
+Option A -- SSH tunnel:
+```bash
+ssh -L 5000:localhost:5000 user@target
+# then open http://localhost:5000
+```
 
-Run the deployment script to set up the system on all specified target machines:
+Option B -- Direct (if Flask binds to 0.0.0.0):
+```
+http://<target_ip>:5000
+```
+
+## Usage
+
+1. Attackers appear in the sidebar as they SSH in
+2. Spy recording starts automatically
+3. Click an attacker to see their live terminal and full command history
+4. Press action buttons to activate/deactivate effects
+5. Attacker must reload their shell (`bash`) for `.bashrc` changes to take effect
+6. Use **Kill** to permanently boot them, **Reset** to lock them out with a new password
+
+## Prerequisites
+
+Target machine needs:
+- Python 3 with Flask
+- `bash`, `sudo`, `script`, `iptables`, `chpasswd`
+- Optional: `aplay` (sounds), `python3-tk` (popups), `xmodmap` (graphical keyboard scramble)
+
+## Log Export
+
+Click "Download Logs" in the dashboard header to get a zip of all session recordings and action logs.
+
+## Cleanup
+
+Remove all traces from a target:
 
 ```bash
-./deploy.sh
+sudo rm -rf /var/tmp/.sp
+sudo crontab -r
+sudo iptables -F
 ```
 
-This script will:
-- Encrypt `scooby_snacks.conf`.
-- Transfer the `session_protector` directory to `/var/tmp/.cache` on each target machine.
-- Install all dependencies silently on the target machines.
-- Start the monitoring script (`popup.py`) and `main.sh` in the background.
+## License
 
----
-
-## Step 3: Monitoring and Management
-
-### 3.1 Check Running Processes
-
-To verify the scripts are running, SSH into a target machine and check for the processes:
-
-```bash
-ssh username@target_ip_1
-ps aux | grep -E "popup.py|main.sh"
-```
-
-### 3.2 Retrieve Logs
-
-Logs from the monitoring script (`popup.py`) are stored at `/var/log/connection_popup.log`. Retrieve them using `scp`:
-
-```bash
-scp username@target_ip_1:/var/log/connection_popup.log ./logs/target_ip_1.log
-```
-
-### 3.3 Adjust or Restart Scripts
-
-If you need to make adjustments:
-
-1. SSH into the target machine.
-2. Navigate to the deployed directory:
-   ```bash
-   cd /var/tmp/.cache
-   ```
-3. Edit the required files, then restart the script:
-   ```bash
-   ./monitor/main.sh &
-   ```
-
----
-
-## Step 4: Automated Monitoring
-
-### 4.1 Enable Persistent Monitoring
-
-Set up `popup.py` as a systemd service to restart automatically on failure:
-
-```bash
-sudo nano /etc/systemd/system/popup.service
-```
-
-Add the following:
-
-```ini
-[Unit]
-Description=Covert Monitoring Script
-After=network.target
-
-[Service]
-ExecStart=/usr/bin/python3 /var/tmp/.cache/gui/popup.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start the service:
-
-```bash
-sudo systemctl enable popup.service
-sudo systemctl start popup.service
-```
-
-### 4.2 Automate Log Retrieval
-
-Schedule a cron job to pull logs periodically to your local machine:
-
-```bash
-crontab -e
-```
-
-Add:
-
-```bash
-0 * * * * scp username@target_ip_1:/var/log/connection_popup.log /path/to/local/logs/
-```
-
----
-
-## Step 5: Cleanup and Stealth
-
-### 5.1 Remove Files from Target Machines
-
-To clean up all traces of the deployment on the target machine:
-
-```bash
-ssh username@target_ip_1
-rm -rf /var/tmp/.cache
-```
-
-### 5.2 Clear Bash History
-
-Clear the bash history on the target machine to remove traces of your commands:
-
-```bash
-history -c
-```
-
----
-
-## Step 6: Logging and Review
-
-### 6.1 Local Log Review
-
-Consolidate all logs from the target machines into a local directory for review:
-
-```bash
-mkdir -p logs
-scp username@target_ip_1:/var/log/connection_popup.log logs/target_ip_1.log
-scp username@target_ip_2:/var/log/connection_popup.log logs/target_ip_2.log
-```
-
-### 6.2 Analyze Logs
-
-Analyze the retrieved logs to understand connection activities and actions taken.
-
----
-
-
+MIT

@@ -1,0 +1,16 @@
+config.env
+*.enc
+__pycache__/
+*.pyc
+*.pyo
+deployment.log
+.env
+*.log
+practice_machine/
+logs/
+recordings/
+sessions/
+start_test.sh
+shutdown.sh
+quickdeploy.sh
+deploy.sh

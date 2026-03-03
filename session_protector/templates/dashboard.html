@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SessionProtector</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="logo-icon">&#9763;</span>
+      <h1>SessionProtector</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="/api/logs/download" class="btn-sm" style="text-decoration:none;color:var(--text-dim)">Download Logs</a>
+      <div class="status" id="status">
+        <span class="dot"></span> Connecting...
+      </div>
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>Attackers</h2>
+        <span class="badge" id="conn-count">0</span>
+      </div>
+      <div class="attacker-list" id="attacker-list">
+        <div class="empty-state" id="no-connections">No connections detected</div>
+      </div>
+    </aside>
+
+    <main class="main-panel" id="main-panel">
+      <div class="no-selection" id="no-selection">
+        <div class="no-selection-icon">&#9763;</div>
+        <p>Select an attacker from the sidebar</p>
+      </div>
+
+      <div class="attacker-detail" id="attacker-detail" style="display:none">
+        <div class="detail-header" id="detail-header"></div>
+
+        <div class="detail-body">
+          <div class="left-col">
+            <div class="spy-panel" id="spy-panel">
+              <div class="spy-header">
+                <h3>Live Terminal</h3>
+                <span class="spy-status" id="spy-status">Recording</span>
+              </div>
+              <div class="spy-output" id="spy-output"></div>
+            </div>
+          </div>
+
+          <div class="right-col">
+            <div class="actions-grid" id="actions-grid">
+              <button class="action-btn btn-fake-files" data-action="fake_files">
+                <span class="btn-icon">&#128196;</span>
+                <span class="btn-label">Fake Files</span>
+              </button>
+              <button class="action-btn btn-fake-cmds" data-action="fake_cmds">
+                <span class="btn-icon">&#128187;</span>
+                <span class="btn-label">Fake Cmds</span>
+              </button>
+              <button class="action-btn btn-shell-chaos" data-action="shell_chaos">
+                <span class="btn-icon">&#9889;</span>
+                <span class="btn-label">Shell Chaos</span>
+              </button>
+              <button class="action-btn btn-keyboard" data-action="keyboard">
+                <span class="btn-icon">&#9000;</span>
+                <span class="btn-label">Keyboard</span>
+              </button>
+              <button class="action-btn btn-sounds" data-action="sounds">
+                <span class="btn-icon">&#128266;</span>
+                <span class="btn-label">Sounds</span>
+              </button>
+              <button class="action-btn btn-messages" data-action="messages">
+                <span class="btn-icon">&#128172;</span>
+                <span class="btn-label">Messages</span>
+              </button>
+              <button class="action-btn btn-popups" data-action="popups">
+                <span class="btn-icon">&#128248;</span>
+                <span class="btn-label">Popups</span>
+              </button>
+              <button class="action-btn btn-passwords" data-action="passwords">
+                <span class="btn-icon">&#128274;</span>
+                <span class="btn-label">Passwords</span>
+              </button>
+              <button class="action-btn btn-spy" data-action="spy">
+                <span class="btn-icon">&#128065;</span>
+                <span class="btn-label">Spy</span>
+              </button>
+              <button class="action-btn btn-kill" data-action="kill">
+                <span class="btn-icon">&#128128;</span>
+                <span class="btn-label">Kill</span>
+              </button>
+              <button class="action-btn btn-reset" data-action="reset">
+                <span class="btn-icon">&#128260;</span>
+                <span class="btn-label">Reset</span>
+              </button>
+            </div>
+
+            <div class="cmd-log-panel">
+              <div class="cmd-log-header">
+                <h3>Command History</h3>
+              </div>
+              <div class="cmd-log-output" id="cmd-log-output"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="event-bar" id="event-bar">
+    <div class="event-bar-header" onclick="toggleEventBar()">
+      <h3>Event Log</h3>
+      <button class="btn-sm" onclick="event.stopPropagation(); clearLog()">Clear</button>
+    </div>
+    <div class="event-bar-body" id="event-bar-body">
+      <div id="event-log" class="log-output"></div>
+    </div>
+  </footer>
+
+  <div id="toast-container"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
